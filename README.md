@@ -27,10 +27,11 @@ The code implements:
 
 Create and activate a virtual environment (recommended), then run:
 
-## Run
-python algorithm2_posterior_q.py
-
 
 
 ```bash
 pip install -r requirements.txt
+
+## Run
+python algorithm2_posterior_q.py
+
