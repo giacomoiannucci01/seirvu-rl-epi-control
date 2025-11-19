@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+
 """
 Parallelised Sequential SMC² + Posterior-Averaged Tabular Q-learning (ε-greedy)
 ===============================================================================
