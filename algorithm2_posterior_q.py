@@ -11,7 +11,7 @@ This script implements Policy π² (Algorithm 2 in the paper):
   • Posterior-averaged tabular Q-learning, slice-based (Δ = 10 days):
       - G = 200 ICU bins on [1, 6000]
       - K = 25 θ-draws per decision time
-      - E = 80,000 episodes per decision time
+      - E = 30,000 episodes per decision time
       - Planning horizon H = 100 days
       - ε-greedy: ε decays from 0.20 → 0.05
       - Learning rate α_k = C / (C + k), with C = 45
@@ -767,7 +767,7 @@ def run_one_replicate(rep_id: int, seed: Optional[int] = None, K: int = 25):
                                 or (day == T_HORIZON - 1)
                     if end_slice:
                         s_next = discretize(x)
-                        td     = R_block + GAMMA * Q[s_next].max()
+                        td = R_block + (GAMMA ** DECISION_PERIOD) * Q[s_next].max()
                         N_sa[sim_prev_s, sim_prev_a] += 1
                         α = C_blk / (C_blk + float(N_sa[sim_prev_s, sim_prev_a]))
                         Q[sim_prev_s, sim_prev_a] += α * (td - Q[sim_prev_s, sim_prev_a])
