@@ -9,7 +9,7 @@ This script implements Policy π² (Algorithm 2 in the paper):
   • Bayesian filtering via SMC² with 500 parameter particles.
   • Domain-randomised ‘true’ β trajectory per replicate.
   • Posterior-averaged tabular Q-learning, slice-based (Δ = 10 days):
-      - G = 200 ICU bins on [1, 8000]
+      - G = 200 ICU bins on [1, 6000]
       - K = 25 θ-draws per decision time
       - E = 80,000 episodes per decision time
       - Planning horizon H = 100 days
@@ -70,7 +70,7 @@ n_actions       = 4
 n_replicates    = 10       # R = 10 independent replicates
 
 # Q-learning hyperparameters for π² (Algorithm 2)
-n_episodes      = 80000    # E = 80,000 episodes
+n_episodes      = 30000    # E = 30,000 episodes
 PLAN_HORIZON    = 100      # H = 100 days
 CRASH_THRESHOLD = 5000     # T_crash
 CRASH_PENALTY   = -1e6    # P = -10^6
@@ -756,11 +756,12 @@ def run_one_replicate(rep_id: int, seed: Optional[int] = None, K: int = 25):
                     env_sim.set_intervention(a)
                     x, icu = env_sim.step(x, day)
 
+                    j = (day - t0) % DECISION_PERIOD
                     if icu > CRASH_THRESHOLD:
-                        R_block += CRASH_PENALTY
+                        daily_reward = CRASH_PENALTY
                     else:
-                        R_block += -(ICU_SCALE * icu
-                                     + COST_SCALE * intervention_cost(a, sim_streak))
+                        daily_reward = -(ICU_SCALE * icu + COST_SCALE * intervention_cost(a, sim_streak))
+                    R_block += (GAMMA ** j) * daily_reward
 
                     end_slice = ((day - t0) % DECISION_PERIOD == DECISION_PERIOD - 1) \
                                 or (day == T_HORIZON - 1)
@@ -993,15 +994,18 @@ def run_baseline_mpc(rep_id: int, seed: Optional[int] = None):
 
                 env_sim.set_intervention(a)
                 x, icu = env_sim.step(x, day)
+                j = (day - t0) % DECISION_PERIOD
                 if icu > CRASH_THRESHOLD:
-                    R_block += CRASH_PENALTY
+                    daily_reward = CRASH_PENALTY
                 else:
-                    R_block += -(ICU_SCALE * icu + COST_SCALE * intervention_cost(a, sim_streak))
+                    daily_reward = -(ICU_SCALE * icu
+                     + COST_SCALE * intervention_cost(a, sim_streak))
+                R_block += (GAMMA ** j) * daily_reward
 
                 end_slice = ((day - t0) % DECISION_PERIOD == DECISION_PERIOD - 1) or (day == T_HORIZON - 1)
                 if end_slice:
                     s_next = discretize(x)
-                    td = R_block + GAMMA * Q[s_next].max()
+                    td = R_block + (GAMMA ** DECISION_PERIOD) * Q[s_next].max()
                     N_sa[sim_prev_s, sim_prev_a] += 1
                     α = C_blk / (C_blk + float(N_sa[sim_prev_s, sim_prev_a]))
                     Q[sim_prev_s, sim_prev_a] += α * (td - Q[sim_prev_s, sim_prev_a])
@@ -1166,7 +1170,7 @@ if __name__ == "__main__":
 
     # Hyperparameter grids (kept trivial so they match the paper exactly)
     epsilons    = [epsilon_start_default]  # ε0 = 0.20
-    N_eps       = [n_episodes]            # E = 80,000
+    N_eps       = [n_episodes]            # E = 30,000
     N_bins_lst  = [N_bins_icu]           # G = 200
     Cs          = [C_const]              # C = 45
     cost_scales = [0.2, 0.5, 0.8]        # κ_so-ec ∈ {0.2, 0.5, 0.8}
